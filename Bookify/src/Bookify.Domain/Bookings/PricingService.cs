@@ -1,16 +1,11 @@
 ﻿using Bookify.Domain.Apartments;
 using Bookify.Domain.Shared;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Bookify.Domain.Bookings;
 
 public class PricingService
 {
-    public PricingDetails CalculatePrice(Appartment appartment, DateRange period)
+    public PricingDetails CalculatePrice(Apartment appartment, DateRange period)
     {
         var currency = appartment.Price.Currency;
 

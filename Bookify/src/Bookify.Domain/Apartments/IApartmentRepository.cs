@@ -8,6 +8,6 @@ namespace Bookify.Domain.Apartments
 {
     public interface IApartmentRepository
     {
-        Task<Appartment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<Apartment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     }
 }

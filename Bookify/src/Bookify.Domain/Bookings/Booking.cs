@@ -1,5 +1,7 @@
 ﻿using Bookify.Domain.Abstractions;
+using Bookify.Domain.Apartments;
 using Bookify.Domain.Bookings.Events;
+using Bookify.Domain.Reviews;
 using Bookify.Domain.Shared;
 using System;
 using System.Collections.Generic;
@@ -48,15 +50,16 @@ namespace Bookify.Domain.Bookings
         public DateTime? CancelledOnUtc { get; set; }
 
         public static Booking Reserve(
-            Guid appartmentId,
+            Apartment appartment,
             Guid userId,
             DateRange duration,
             DateTime utcNow,
-            PricingDetails pricingDetails)
+            PricingService pricingService)
         {
+            var pricingDetails = pricingService.CalculatePrice(appartment, duration);
             var booking = new Booking(
                 Guid.NewGuid(),
-                appartmentId,
+                appartment.Id,
                 userId,
                 duration,
                 pricingDetails.PriceForPeriod,
@@ -69,8 +72,76 @@ namespace Bookify.Domain.Bookings
 
             booking.RaiseDomainEvent(new BookingReservedDomainEvent(booking.Id));
 
+            appartment.LastBookedOnUtc = utcNow;
+
             return booking;
         }
 
+        public Result Confirm(DateTime utcnow)
+        {
+            if (Status != BookingStatus.Reserved)
+            {
+                return Result.Failure(BookingErrors.NotReserved);
+            }
+
+            Status = BookingStatus.Confirmed;
+            ConfirmedOnUtc = utcnow;
+
+            RaiseDomainEvent(new BookingConfirmedDomainEvent(Id));
+
+            return Result.Success();
+        }
+
+        public Result Reject(DateTime utcNow)
+        {
+            if(Status != BookingStatus.Reserved)
+            {
+                return Result.Failure(BookingErrors.NotReserved);
+            }
+
+            Status = BookingStatus.Rejected;
+            RejectedOnUtc = utcNow;
+
+            RaiseDomainEvent(new BookingRejectedDomainEvent(Id));
+
+            return Result.Success();
+        }
+
+        public Result Complete(DateTime utcNow)
+        {
+            if (Status == BookingStatus.Confirmed)
+            {
+                return Result.Failure(BookingErrors.NotConfirmed);
+            }
+
+            Status = BookingStatus.Completed;
+            CompletedOnUtc = utcNow;
+
+            RaiseDomainEvent(new BookingCompletedDomainevent(Id));
+
+            return Result.Success();
+        }
+
+        public Result Cancel(DateTime utcNow)
+        {
+            if( Status != BookingStatus.Confirmed)
+            {
+                return Result.Failure(BookingErrors.NotConfirmed);
+            }
+
+            var currentDate = DateOnly.FromDateTime(utcNow);
+
+            if(currentDate > Duration.Start)
+            {
+                return Result.Failure (BookingErrors.AlreadyStarted);
+            }
+
+            Status = BookingStatus.Cancelled;
+            CancelledOnUtc = utcNow;
+
+            RaiseDomainEvent(new ReviewCreatedDomainEvent(Id));
+
+            return Result.Success();
+        }
     }
 }
